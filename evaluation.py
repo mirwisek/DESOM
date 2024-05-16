@@ -5,6 +5,7 @@ Performance evaluator
 """
 
 import csv
+import os
 from somperf.metrics import *
 from somperf.utils.topology import rectangular_topology_dist
 import sklearn.metrics as skmetrics
@@ -101,11 +102,12 @@ class PerfLogger:
                                                                                           'topographic_product',
                                                                                           'latent_topographic_product']]
 
-        self.logfile = open(save_dir + '/log.csv', 'w')
+        self.logfile = open(os.path.join(save_dir, 'log.csv'), 'w')
+        print(self.logfile)
         self.logwriter = csv.DictWriter(self.logfile, self.metrics)
         self.logwriter.writeheader()
 
-        self.evalfile = open(save_dir + '/evaluation.csv', 'w')
+        self.evalfile = open(os.path.join(save_dir, 'evaluation.csv'), 'w')
         self.evalwriter = csv.DictWriter(self.evalfile, self.evaluation_metrics)
         self.evalwriter.writeheader()
 

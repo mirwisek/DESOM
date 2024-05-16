@@ -6,6 +6,63 @@ Dataset loading functions
 """
 
 import numpy as np
+import pandas as pd
+from pyts.image import GramianAngularField
+import time
+import os
+
+save_dir = 'saved_datasets'
+
+def load_ucr(flatten=True, validation=False):
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    # Load the dataset
+    ds_train = '../datasets/UCRArchive_2018/Earthquakes/Earthquakes_TRAIN.tsv'
+    ds_test = '../datasets/UCRArchive_2018/Earthquakes/Earthquakes_TEST.tsv'
+    
+    df_train = pd.read_csv(ds_train, sep='\t', header=None)
+    df_test = pd.read_csv(ds_test, sep='\t', header=None)
+    
+    # Separate features and labels
+    x_train, y_train = df_train.iloc[:, 1:], df_train.iloc[:, 0]
+    x_test, y_test = df_test.iloc[:, 1:], df_test.iloc[:, 0]
+    
+    # Normalize data
+    x_train = 2 * ((x_train - x_train.min()) / (x_train.max() - x_train.min())) - 1
+    # x_test = 2 * ((x_test - x_test.min()) / (x_test.max() - x_test.min())) - 1
+    
+    # Convert data to float32
+    x_train = x_train.astype('float32')
+    x_test = x_test.astype('float32')
+
+    start_time = time.time()
+    # Convert time series to GAF images
+    gasf = GramianAngularField(method='summation')
+    
+    x_train_gaf = gasf.fit_transform(x_train)
+    x_test_gaf = gasf.transform(x_test)
+
+    end_time = time.time()
+    print(f"Dataset: {x_train.shape} train samples, {x_test.shape} test samples")
+    print(f"Timeseries to Image conversion time: {end_time - start_time} seconds")
+
+    # Save the processed datasets to files
+    np.savez_compressed(f"{save_dir}/earthquake_train.npz", x_train=x_train_gaf, y_train=y_train)
+    np.savez_compressed(f"{save_dir}/earthquake_test.npz", x_test=x_test_gaf, y_test=y_test)
+    
+    # Optionally flatten the data (although usually images are not flattened for CNNs)
+    if flatten:
+        x_train_gaf = x_train_gaf.reshape(x_train_gaf.shape[0], -1)
+        x_test_gaf = x_test_gaf.reshape(x_test_gaf.shape[0], -1)
+    
+    if validation:
+        return (x_train_gaf, y_train), (x_test_gaf, y_test)
+    else:
+        x = np.concatenate((x_train_gaf, x_test_gaf))
+        y = np.concatenate((y_train, y_test))
+        return (x, y), (None, None)
 
 
 def load_mnist(flatten=True, validation=False):
@@ -168,6 +225,8 @@ def make_reuters_data(data_dir):
 def load_data(dataset_name, flatten=True, validation=False):
     if dataset_name == 'mnist':
         return load_mnist(flatten=flatten, validation=validation)
+    elif dataset_name == 'ucr':
+        return load_ucr(flatten=flatten, validation=validation)
     elif dataset_name == 'fmnist':
         return load_fashion_mnist(flatten=flatten, validation=validation)
     elif dataset_name == 'usps':
